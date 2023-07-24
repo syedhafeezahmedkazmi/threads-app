@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thread App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f8f8f8;
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    #user-info {
+      text-align: right;
+      margin-bottom: 10px;
+    }
+
+    #post-form {
+      margin-bottom: 20px;
+    }
+
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    li {
+      position: relative;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .post-text {
+      margin-bottom: 10px;
+    }
+
+    .post-buttons {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .post-buttons button {
+      margin-left: 5px;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 24px;
+      }
+
+      h2 {
+        font-size: 18px;
+      }
+
+      #post-input {
+        width: 80%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Thread App</h1>
+
+  <!-- Display current user information -->
+  <div id="user-info">
+    <p>Welcome, <span id="user-email"></span></p>
+    <button id="sign-out-btn">Sign Out</button>
+  </div>
+
+  <h2>Create a Post</h2>
+  <form id="post-form">
+    <input type="text" id="post-input" placeholder="Enter your post">
+    <button type="submit">Post</button>
+  </form>
+
+  <!-- Post list -->
+  <h2>Posts</h2>
+  <ul id="post-list"></ul>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
+    import { getDatabase, ref, push, onChildAdded, onChildRemoved, remove, update } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyAXk-GBXDo13m0MgN7izWnjvkRFFkGREwE",
+      authDomain: "pollingapplicationtest.firebaseapp.com",
+      databaseURL: "https://pollingapplicationtest-default-rtdb.firebaseio.com",
+      projectId: "pollingapplicationtest",
+      storageBucket: "pollingapplicationtest.appspot.com",
+      messagingSenderId: "232459216310",
+      appId: "1:232459216310:web:2c8a01556de92880ab0d17",
+      measurementId: "G-QY1MD1H210"
+    };
+
+    // Initialize Firebase
+    const firebaseApp = initializeApp(firebaseConfig);
+    const auth = getAuth(firebaseApp);
+    const database = getDatabase(firebaseApp);
+    const postsRef = ref(database, "posts");    
+    const postForm = document.getElementById("post-form");
+    const postInput = document.getElementById("post-input");
+    const postList = document.getElementById("post-list");
+    const userInfo = document.getElementById("user-info");
+    const userEmailSpan = document.getElementById("user-email");
+    const signOutBtn = document.getElementById("sign-out-btn");
+
+    let currentUserUid; // To store the UID of the current user
+
+    // Check if the user is logged in and get the UID
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUserUid = user.uid;
+        // Display the user's email
+        userEmailSpan.textContent = user.email;
+        // Show the user info section
+        userInfo.style.display = "block";
+      } else {
+        currentUserUid = null;
+        // Hide the user info section if not logged in
+        userInfo.style.display = "none";
+      }
+    });
+
+    postForm.addEventListener("submit", e => {
+      e.preventDefault();
+
+      const postText = postInput.value.trim();
+
+      if (postText !== "") {
+        push(postsRef, { text: postText, createdBy: currentUserUid }).then(() => {
+          postInput.value = "";
+        });
+      }
+    });
+
+    onChildAdded(postsRef, (data) => {
+      const post = data.val();
+      const postId = data.key;
+      const createdBy = post.createdBy;
+
+      const li = document.createElement("li");
+      li.textContent = post.text;
+      li.id = postId;
+
+      // Add the delete button if the post was created by the current user
+      if (currentUserUid === createdBy) {
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete";
+        deleteButton.addEventListener("click", () => {
+          // Check if the current user is the creator of the post before deleting
+          if (currentUserUid === createdBy) {
+            remove(data.ref);
+          } else {
+            alert("You can only delete your own posts.");
+          }
+        });
+        li.appendChild(deleteButton);
+
+        // Add the edit button for the post
+        const editButton = document.createElement("button");
+        editButton.textContent = "Edit";
+        editButton.addEventListener("click", () => {
+          // Check if the current user is the creator of the post before editing
+          if (currentUserUid === createdBy) {
+            const postText = prompt("Edit your post:", post.text);
+            if (postText !== null) {
+              // Update the post in the database
+              update(data.ref, { text: postText });
+            }
+          } else {
+            alert("You can only edit your own posts.");
+          }
+        });
+        li.appendChild(editButton);
+      }
+
+      postList.appendChild(li);
+    });
+
+    onChildRemoved(postsRef, snapshot => {
+      const postId = snapshot.key;
+      const li = document.getElementById(postId);
+      li.remove();
+    });
+
+    // Sign out event listener
+    signOutBtn.addEventListener("click", () => {
+      signOut(auth)
+        .then(() => {
+          // Sign-out successful.
+          alert("Sign Out Successful!");
+        })
+        .catch((error) => {
+          console.log("Error signing out:", error);
+        });
+    });
+  </script>
+</body>
+</html>

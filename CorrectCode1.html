@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Thread App</title>
+</head>
+<body>
+  <h1>Thread App</h1>
+
+  <h2>Create a Post</h2>
+  <form id="post-form">
+    <input type="text" id="post-input" placeholder="Enter your post">
+    <button type="submit">Post</button>
+  </form>
+
+  <!-- Post list -->
+  <h2>Posts</h2>
+  <ul id="post-list"></ul>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded, onChildRemoved, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyAXk-GBXDo13m0MgN7izWnjvkRFFkGREwE",
+        authDomain: "pollingapplicationtest.firebaseapp.com",
+        databaseURL: "https://pollingapplicationtest-default-rtdb.firebaseio.com",
+        projectId: "pollingapplicationtest",
+        storageBucket: "pollingapplicationtest.appspot.com",
+        messagingSenderId: "232459216310",
+        appId: "1:232459216310:web:2c8a01556de92880ab0d17",
+        measurementId: "G-QY1MD1H210"
+    };
+
+    // Initialize Firebase
+    const firebaseApp = initializeApp(firebaseConfig);
+    const database = getDatabase(firebaseApp);
+    const postsRef = ref(database, "posts");    
+    const postForm = document.getElementById("post-form");
+    const postInput = document.getElementById("post-input");
+    const postList = document.getElementById("post-list");
+  
+    postForm.addEventListener("submit", e => {
+      e.preventDefault();
+  
+      const postText = postInput.value.trim();
+  
+      if (postText !== "") {
+        push(postsRef, { text: postText }).then(() => {
+          postInput.value = "";
+        });
+      }
+    });
+  
+    onChildAdded(postsRef, (data) => {
+      const post = data.val();
+      const postId = data.key;
+  
+      const li = document.createElement("li");
+      li.textContent = post.text;
+      li.id = postId;
+  
+      const deleteButton = document.createElement("button");
+      deleteButton.textContent = "Delete";
+      deleteButton.addEventListener("click", () => {
+        remove(data.ref);
+      });
+  
+      li.appendChild(deleteButton);
+      postList.appendChild(li);
+    });
+  
+    onChildRemoved(postsRef, snapshot => {
+      const postId = snapshot.key;
+      const li = document.getElementById(postId);
+      li.remove();
+    });
+  </script>
+      
+</body>
+</html>
